@@ -181,7 +181,7 @@
      * @param string $query
      * @throws \LogicException
      * @throws \InvalidArgumentException
-     * @return ExtMysqlStatement
+     * @return Statement
      */
     public function prepare($query) {
       if (!isset($this->link)) {
@@ -192,14 +192,14 @@
         throw new \InvalidArgumentException('Use setCharset() instead of SET NAMES query');
       }
 
-      return new ExtMysqlStatement($this, $query);
+      return new Statement($this, $query);
     }
 
     /**
      * @param string $query
      * @throws \LogicException
      * @throws \InvalidArgumentException
-     * @return ExtMysqlStatement
+     * @return Statement
      */
     public function query($query) {
       if (!isset($this->link)) {
@@ -210,7 +210,7 @@
         throw new \InvalidArgumentException('Use setCharset() instead of SET NAMES query');
       }
 
-      return new ExtMysqlStatement($this, $query, TRUE);
+      return new Statement($this, $query, TRUE);
     }
 
     /**
