@@ -7,22 +7,22 @@
     /**
      * @const BIND_AUTO
      */
-    const BIND_AUTO   = 0;
+    const BIND_AUTO    = 0;
 
     /**
      * @const BIND_STRING
      */
-    const BIND_STRING = 1;
+    const BIND_STRING  = 1;
 
     /**
      * @const BIND_NUMBER
      */
-    const BIND_NUMBER = 2;
+    const BIND_NUMBER  = 2;
 
     /**
      * @const BIND_NULL
      */
-    const BIND_NULL   = 4;
+    const BIND_NULL    = 4;
 
     /**
      * @const FETCH_ASSOC
@@ -30,9 +30,9 @@
     const FETCH_ASSOC  = 1;
 
     /**
-     * @const FETCH_INDEX
+     * @const FETCH_NUM
      */
-    const FETCH_INDEX  = 2;
+    const FETCH_NUM    = 2;
 
     /**
      * @const FETCH_BOTH
@@ -58,6 +58,11 @@
      * @var array $placeHolders
      */
     private $placeHolders = array();
+
+    /**
+     * @var array $boundRefs
+     */
+    private $boundRefs = array();
 
     /**
      * @var resource $result
@@ -118,7 +123,7 @@
      * @param int $mode
      * @return string
      */
-    private function sanitiseParam($value, $mode) {
+    private function sanitizeParam($value, $mode) {
       if ($mode == self::BIND_AUTO) {
         if (is_int($value) || is_float($value) || is_bool($value)) {
           $mode = self::BIND_NUMBER;
@@ -161,7 +166,23 @@
         throw new \InvalidArgumentException('Unknown parameter name '.$name);
       }
 
-      $this->placeHolders[$name] = $this->sanitiseParam($value, $mode);
+      unset($this->boundRefs[$name]);
+      $this->placeHolders[$name] = $this->sanitizeParam($value, $mode);
+    }
+
+    /**
+     * @param string $name
+     * @param mixed $var
+     * @param int $mode
+     * @throws \InvalidArgumentException
+     */
+    public function bindParam($name, &$var, $mode = self::BIND_AUTO) {
+      $name = ltrim($name, ':');
+      if (!isset($this->placeHolders[$name])) {
+        throw new \InvalidArgumentException('Unknown parameter name '.$name);
+      }
+
+      $this->boundRefs[$name] = array(&$var, $mode);
     }
 
     /**
@@ -171,6 +192,10 @@
      * @throws \RuntimeException
      */
     public function execute(array $params = array()) {
+      foreach ($this->boundRefs as $name => $value) {
+        $this->bindValue($name, $value[0], $value[1]);
+      }
+
       foreach ($params as $name => $value) {
         $this->bindValue($name, $value);
       }
@@ -223,7 +248,7 @@
       }
 
       switch ($mode) {
-        case self::FETCH_INDEX:
+        case self::FETCH_NUM:
           return mysql_fetch_row($this->result);
 
         case self::FETCH_BOTH:
@@ -247,11 +272,23 @@
       $this->seek(0);
 
       $rows = array();
-      while ($rows[] = $this->fetch($mode));
+      while ($row = $this->fetch($mode)) {
+        $rows[] = $row;
+      }
 
       $this->close();
 
       return $rows;
+    }
+
+    /**
+     * @param int $columnNumber
+     * @return mixed
+     * @throws \LogicException
+     */
+    public function fetchColumn($columnNumber = 0) {
+      $row = $this->fetch(self::FETCH_NUM);
+      return isset($row[$columnNumber]) ? $row[$columnNumber] : FALSE;
     }
 
     /**
