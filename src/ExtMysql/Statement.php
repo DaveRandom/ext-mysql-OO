@@ -4,44 +4,14 @@
 
   class Statement {
 
-    /**
-     * @const BIND_AUTO
-     */
     const BIND_AUTO    = 0;
-
-    /**
-     * @const BIND_STRING
-     */
     const BIND_STRING  = 1;
-
-    /**
-     * @const BIND_NUMBER
-     */
     const BIND_NUMBER  = 2;
-
-    /**
-     * @const BIND_NULL
-     */
     const BIND_NULL    = 4;
 
-    /**
-     * @const FETCH_ASSOC
-     */
     const FETCH_ASSOC  = 1;
-
-    /**
-     * @const FETCH_NUM
-     */
     const FETCH_NUM    = 2;
-
-    /**
-     * @const FETCH_BOTH
-     */
     const FETCH_BOTH   = 4;
-
-    /**
-     * @const FETCH_OBJECT
-     */
     const FETCH_OBJECT = 8;
 
     /**
@@ -103,18 +73,44 @@
     }
 
     /**
+     * @param string $token
+     * @return bool
+     */
+    private function isQuotedString($token) {
+      return in_array($token[0], array('"', "'")) && $token[0] == $token[strlen($token) - 1];
+    }
+
+    /**
+     * @param string $token
+     */
+    private function prepareToken($token) {
+      if ($this->isQuotedString($token)) {
+        $this->queryParts[] = $token;
+      } else {
+        $expr = '/(:[a-z]\w+)/i';
+        $parts = preg_split($expr, $token, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+        foreach ($parts as $part) {
+          if ($part[0] == ':') {
+            $name = ltrim($part, ':');
+            $this->placeHolders[$name] = '';
+            $this->queryParts[] = &$this->placeHolders[$name];
+          } else {
+            $this->queryParts[] = $part;
+          }
+        }
+      }
+    }
+
+    /**
      * @param string $query
      */
     private function prepareQuery($query) {
-      $query = preg_split('/(:[a-z]\w+)/i', $query, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
-      foreach ($query as $part) {
-        if ($part[0] == ':') {
-          $name = ltrim($part, ':');
-          $this->placeHolders[$name] = '';
-          $this->queryParts[] = &$this->placeHolders[$name];
-        } else {
-          $this->queryParts[] = $part;
-        }
+      $expr = '/("(?:[^"\\\\]*(?:\\\\.[^"\\\\]*)*)"|\'(?:[^\'\\\\]*(?:\\\\.[^\'\\\\]*)*)\')/';
+      $tokens = preg_split($expr, $query, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+      foreach ($tokens as $token) {
+        $this->prepareToken($token);
       }
     }
 
